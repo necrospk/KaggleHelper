@@ -89,4 +89,28 @@ Function for predicting with lgbm, that use KFold method
 - submit - dataframe with predict for test part  
 - fi - feature importance of training  
   
-   
+def catboost_calc(train,
+              test,
+              features,
+              target,
+              param,
+              score_function = roc_auc_score,
+              n_fold = 3, 
+              seed = 11, 
+              cat_features = []
+              ):
+Function for predicting with CatBoost(Yandex), that use KFold method
+
+train - train dataset
+test - test dataset
+features - features, that will be used for predict
+target - target feature
+param - param for LGBM (see doc. for lgbm)
+score_function - score function from sklearn.metrics or you own function
+n_fold - number folds for KFold
+seed - seed for random
+cat_features - categorical feature if tou have it in dataset (default [])
+return :
+
+oof_df - dataframe with predict for train part
+submit - dataframe with predict for test part
