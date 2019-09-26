@@ -195,7 +195,7 @@ def lgbm_calc(train,
     predictions = np.zeros(len(test))
 
     print('Cnt features:',len(features))
-    for fold_, (trn_idx, val_idx) in enumerate(folds.split(train,train.isFraud)):#
+    for fold_, (trn_idx, val_idx) in enumerate(folds.split(train,train[target])):#
         print_bold('***')
         print_bold('Fold №'+str(fold_+1))
                 
@@ -240,3 +240,82 @@ def lgbm_calc(train,
             data=fi.sort_values(by="importance",
                                            ascending=False)[:100])
     return oof_df,submit,fi
+
+def catboost_calc(train,
+              test,
+              features,
+              target,
+              param,
+              score_function = roc_auc_score,
+              n_fold = 3, 
+              seed = 11, 
+              cat_features = []
+              ):
+    """
+    Function for predicting with CatBoost(Yandex), that use KFold method
+    
+    train - train dataset
+    test - test dataset
+    features - features, that will be used for predict
+    target - target feature
+    param - param for LGBM (see doc. for lgbm)
+    score_function  - score function from sklearn.metrics or you own function
+    n_fold - number folds for KFold
+    seed - seed for random
+    cat_features - categorical feature if tou have it in dataset (default [])
+    
+    return :
+    
+    oof_df - dataframe with predict for train part
+    submit - dataframe with predict for test part    
+    """
+    
+    folds = KFold(n_splits=5, shuffle=False, random_state = 22)
+    #folds = GroupKFold(n_splits=n_fold)
+
+
+    submit = test[[test.columns[0]]]
+    submit[target] = 0
+    oof_glob = train[[test.columns[0],target]]
+    oof_glob['mean_all'] = 0
+    oof = np.zeros(len(train))
+    predictions = np.zeros(len(test))
+
+    print('Cnt features:',len(features))
+    for fold_, (trn_idx, val_idx) in enumerate(folds.split(train,train[target])):#,train.DT_YM_cos
+        print_bold('***')
+        print_bold('Fold №'+str(fold_+1))
+
+        trn_data = Pool(train.iloc[trn_idx][features],
+                               label=train[target].iloc[trn_idx],
+                                cat_features = cat_features
+                              )
+        val_data = Pool(train.iloc[val_idx][features],
+                               label=train[target].iloc[val_idx],
+                                cat_features = cat_features
+                              )
+        
+        cb = CatBoost(param)
+        clf = cb.fit(trn_data,eval_set = val_data)
+        
+        oof_pred = clf.predict_proba(train[features])
+        oof_glob['mean_all'] += oof_pred[:,1]/ folds.n_splits
+        oof[val_idx] = oof_pred[val_idx][:,1]
+        
+        pred = clf.predict_proba(test[features])
+        predictions += pred[:,1]/ folds.n_splits
+
+        score = score_function(train[target][val_idx],oof[val_idx])
+        print_bold('<b>Result flod'+str(fold_+1)+': AUC = '+str(score)+'</b>')
+
+    submit[target] = predictions
+
+    score = score_function(train[target],oof_glob['mean_all'])
+    oof_df = train[[test.columns[0]]]
+    oof_df[target] = oof
+
+    print_bold('<b>Result: AUC = '+str(score)+'</b>')
+    submit_result(submit,'CatBoost_',score,oof_df)
+    
+    return oof_df,submit
+
