@@ -1,7 +1,7 @@
 # KaggelHelper  
   
 Self-writing library for more best practice when participating in competitions at Kaggle.com.  
-Wrote for myself using.  
+Wrote for myself.  
   
 ```python 
 print_bold(string)
